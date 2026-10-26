@@ -1,0 +1,14 @@
+.venv/
+__pycache__/
+*.pyc
+*.egg-info/
+build/
+dist/
+data/
+cache/
+media/
+versions/
+.pytest_cache/
+.scriptolib-install.json
+current.txt
+
