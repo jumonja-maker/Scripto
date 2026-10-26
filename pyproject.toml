@@ -1,0 +1,22 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "scriptolib"
+version = "0.1.0"
+description = "A quiet, offline-first personal media library"
+requires-python = ">=3.12"
+dependencies = ["PySide6-Essentials==6.10.3"]
+
+[project.scripts]
+scriptolib = "scriptolib.__main__:main"
+
+[tool.setuptools.package-data]
+scriptolib = ["qml/*", "assets/*", "assets/icons/*"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]
+cache_dir = "cache/pytest"
+
