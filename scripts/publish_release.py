@@ -21,12 +21,18 @@ sys.path.insert(0, str(ROOT / "src"))
 from scriptolib.updates import check_release, version_tuple  # noqa: E402
 
 
-def api(path: str, *, missing_ok: bool = False):
-    request = Request(API + path, headers={
+def api(path: str, *, missing_ok: bool = False, method: str = "GET", data: dict | None = None):
+    headers = {
         "Accept": "application/vnd.github+json", "User-Agent": "ScriptoLib-Release",
         "X-GitHub-Api-Version": "2022-11-28",
         "Authorization": "Bearer " + os.environ["GH_TOKEN"],
-    })
+    }
+    if method == "GET":
+        headers["Cache-Control"] = "no-cache"
+    if data is not None:
+        headers["Content-Type"] = "application/json"
+    request = Request(API + path, headers=headers, method=method,
+                      data=json.dumps(data).encode("utf-8") if data is not None else None)
     try:
         with urlopen(request, timeout=30) as response:
             return json.load(response)
@@ -102,7 +108,11 @@ def verify_tag(tag: str, commit: str, *, missing_ok: bool) -> None:
         raise ValueError("Release tag already points to a different commit")
 
 
-def require_draft(release: dict, commit: str) -> None:
+def require_draft(release: dict, commit: str, tag: str) -> None:
+    if not isinstance(release, dict) or type(release.get("id")) is not int or release["id"] <= 0:
+        raise ValueError("Release response has no positive numeric ID")
+    if release.get("tag_name") != tag:
+        raise ValueError("Release response has a different tag")
     if release.get("draft") is not True:
         raise ValueError("Release is already published; bump the version instead of replacing assets")
     if release.get("target_commitish") != commit:
@@ -122,7 +132,7 @@ def publish(version: str, commit: str, directory: Path) -> str:
     tag = "v" + version
     release = find_release(tag)
     if release:
-        require_draft(release, commit)
+        require_draft(release, commit, tag)
     latest = api("/releases/latest", missing_ok=True)
     previous = latest["tag_name"].removeprefix("v") if latest else "0.0.0"
     if version_tuple(previous) >= version_tuple(version):
@@ -137,18 +147,30 @@ def publish(version: str, commit: str, directory: Path) -> str:
             "SHA256 всех трёх приложенных файлов сверяется с GitHub перед публикацией.\n",
             encoding="utf-8",
         )
-        gh("create", tag, "--draft", "--target", commit, "--title", f"ScriptoLib {version}", "--notes-file", str(notes))
-        release = find_release(tag)
-    if release is None:
-        raise ValueError("Created draft was not found; inspect the release before retrying")
+        # Use the create response directly: release listings can lag behind a
+        # successful creation, even while the new release is readable by ID.
+        release = api("/releases", method="POST", data={
+            "tag_name": tag, "target_commitish": commit, "name": f"ScriptoLib {version}",
+            "body": notes.read_text(encoding="utf-8"), "draft": True, "prerelease": False,
+        })
+    require_draft(release, commit, tag)
     endpoint = f"/releases/{release['id']}"
     # Resume only unpublished drafts for the identical commit. A failed upload
     # stays a draft; --clobber never intentionally replaces a public artifact.
-    require_draft(api(endpoint), commit)
+    require_draft(api(endpoint), commit, tag)
     gh("upload", tag, *(str(directory / name) for name in expected), "--clobber")
-    release = api(endpoint)
-    require_draft(release, commit)
-    verify_assets(release, expected)
+    # Retry only reads when GitHub briefly serves the pre-upload asset list.
+    # Never repeat creation/upload or weaken the required asset checks.
+    for attempt in range(5):
+        release = api(endpoint)
+        require_draft(release, commit, tag)
+        try:
+            verify_assets(release, expected)
+            break
+        except ValueError:
+            if attempt == 4:
+                raise
+            time.sleep(3)
     verify_tag(tag, commit, missing_ok=True)
     gh("edit", tag, "--draft=false", "--prerelease=false", "--latest")
     # Also verify the unauthenticated updater path; do not install anything.
