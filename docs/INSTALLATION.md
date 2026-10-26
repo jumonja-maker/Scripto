@@ -4,7 +4,7 @@
 
 ## Установка
 
-1. Открыть `ScriptoLib-0.1.0-Setup.exe`.
+1. Открыть `ScriptoLib-0.1.1-Setup.exe` из опубликованного релиза.
 2. В окне выбора создать или выбрать **отдельную пустую папку**, доступную пользователю для записи, например `D:\ScriptoLib`.
 3. После установки открыть `ScriptoLib.exe` в этой папке.
 
@@ -50,7 +50,7 @@ ScriptoLib не должна самостоятельно создавать д�
 Нужны Python 3.12+, MinGW-w64 и NSIS. На Linux:
 
 ```bash
-python scripts/build_windows.py --version 0.1.0
+python scripts/build_windows.py --version 0.1.1
 ```
 
 Можно явно указать пути к инструментам через `--cc`, `--windres`, `--makensis`, `--nsisdir`, а также каталог зависимостей `--cache` и выходной каталог `--output`.

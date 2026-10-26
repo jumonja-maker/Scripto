@@ -10,7 +10,11 @@ Button {
     property bool outlined: false
     implicitWidth: text.length ? contentItem.implicitWidth + 28 : 48
     implicitHeight: 40
-    padding: 10
+    padding: text.length ? 10 : Math.max(0, (Math.min(width, height) - 24) / 2)
+    leftPadding: padding
+    rightPadding: padding
+    topPadding: padding
+    bottomPadding: padding
     hoverEnabled: true
     focusPolicy: Qt.StrongFocus
     Accessible.name: hint.length ? hint : text

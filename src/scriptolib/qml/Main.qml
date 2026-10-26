@@ -71,12 +71,6 @@ ApplicationWindow {
                 selected: !settingsOpen
                 onClicked: settingsOpen = false
             }
-            QuietButton {
-                width: 48; height: 48
-                iconName: "search"
-                hint: "Найти в библиотеке · Ctrl+K"
-                onClicked: { settingsOpen = false; search.forceActiveFocus() }
-            }
         }
         QuietButton {
             objectName: "settingsButton"
@@ -98,19 +92,50 @@ ApplicationWindow {
         anchors.bottom: parent.bottom
         anchors.leftMargin: window.width < 1100 ? 28 : 48
         anchors.rightMargin: window.width < 1100 ? 28 : 48
-        anchors.topMargin: 40
+        anchors.topMargin: 32
         anchors.bottomMargin: 24
         spacing: 0
 
-        RowLayout {
+        Item {
+            id: libraryHeader
+            readonly property bool compact: mainLayout.width < 900
             Layout.fillWidth: true
-            spacing: 24
+            Layout.preferredHeight: compact ? libraryTitle.implicitHeight + categoryTabs.height + 16 : libraryTitle.implicitHeight
             ColumnLayout {
+                id: libraryTitle
                 spacing: 4
                 Text { text: "Библиотека"; color: Theme.text; font.pixelSize: 32; font.variableAxes: ({"wght": 600}) }
                 Text { text: "Твоя локальная медиатека"; color: Theme.muted; font.pixelSize: 13 }
             }
-            Item { Layout.fillWidth: true }
+            Row {
+                id: categoryTabs
+                objectName: "categoryTabs"
+                x: libraryHeader.compact ? 0 : libraryTitle.width + 40
+                y: libraryHeader.compact ? libraryTitle.height + 16 : 3
+                spacing: 4
+                Repeater {
+                    model: [{key: "all", label: "Всё"}, {key: "unassigned", label: "Не распределено"},
+                            {key: "film", label: "Фильмы"}, {key: "series", label: "Сериалы"},
+                            {key: "music", label: "Музыка"}, {key: "video", label: "Видео"}]
+                    delegate: QuietButton {
+                        required property var modelData
+                        objectName: "category_" + modelData.key
+                        text: modelData.label + (modelData.key === "all" && library.totalCount > 0 ? "  " + library.totalCount : "")
+                        implicitHeight: 36
+                        selected: library.category === modelData.key
+                        onClicked: library.setCategory(modelData.key)
+                    }
+                }
+            }
+        }
+        Item { Layout.preferredHeight: 20 }
+        Rectangle { Layout.fillWidth: true; Layout.preferredHeight: 1; color: Theme.line }
+        Item { Layout.preferredHeight: 16 }
+        RowLayout {
+            Layout.fillWidth: true
+            spacing: 12
+            Text { text: search.text.length ? "Найдено" : "Файлы"; font.pixelSize: 15; font.variableAxes: ({"wght": 600}); color: Theme.text }
+            Text { text: library.items.length; font.pixelSize: 11; color: Theme.subtle; Layout.rightMargin: 8 }
             Rectangle {
                 Layout.preferredWidth: window.width < 1100 ? 200 : 260
                 Layout.preferredHeight: 40
@@ -141,36 +166,13 @@ ApplicationWindow {
                 enabled: !library.busy
                 onClicked: fileDialog.open()
             }
-        }
-        Item { Layout.preferredHeight: 32 }
-        RowLayout {
-            Layout.fillWidth: true
-            spacing: 8
-            Repeater {
-                model: [{key: "all", label: "Всё"}, {key: "unassigned", label: "Не распределено"},
-                        {key: "film", label: "Фильмы"}, {key: "series", label: "Сериалы"},
-                        {key: "music", label: "Музыка"}, {key: "video", label: "Видео"}]
-                delegate: QuietButton {
-                    required property var modelData
-                    text: modelData.label + (modelData.key === "all" && library.totalCount > 0 ? "  " + library.totalCount : "")
-                    selected: library.category === modelData.key
-                    onClicked: library.setCategory(modelData.key)
-                }
+            Item { Layout.fillWidth: true }
+            Text { visible: window.width >= 1100; text: "Недавно добавленные"; color: Theme.muted; font.pixelSize: 11; Layout.rightMargin: 4 }
+            RowLayout {
+                spacing: 4
+                QuietButton { objectName: "gridViewButton"; implicitWidth: 36; implicitHeight: 36; iconName: "grid"; hint: "Карточки"; selected: !library.listView; onClicked: library.setListView(false) }
+                QuietButton { objectName: "listViewButton"; implicitWidth: 36; implicitHeight: 36; iconName: "list"; hint: "Список"; selected: library.listView; onClicked: library.setListView(true) }
             }
-            Item { Layout.fillWidth: true }
-        }
-        Item { Layout.preferredHeight: 24 }
-        Rectangle { Layout.fillWidth: true; Layout.preferredHeight: 1; color: Theme.line }
-        Item { Layout.preferredHeight: 22 }
-        RowLayout {
-            Layout.fillWidth: true
-            spacing: 8
-            Text { text: search.text.length ? "Найдено" : "Файлы"; font.pixelSize: 15; font.variableAxes: ({"wght": 600}); color: Theme.text }
-            Text { text: library.items.length; font.pixelSize: 11; color: Theme.subtle }
-            Item { Layout.fillWidth: true }
-            Text { text: "Недавно добавленные"; color: Theme.muted; font.pixelSize: 11; Layout.rightMargin: 12 }
-            QuietButton { width: 36; implicitWidth: 36; implicitHeight: 36; iconName: "grid"; hint: "Карточки"; selected: !library.listView; onClicked: library.setListView(false) }
-            QuietButton { width: 36; implicitWidth: 36; implicitHeight: 36; iconName: "list"; hint: "Список"; selected: library.listView; onClicked: library.setListView(true) }
         }
         Item { Layout.preferredHeight: 16 }
         Item {
